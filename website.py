@@ -27,8 +27,8 @@ if uploaded_file:
         df_encoded = pd.DataFrame(te_array, columns=te.columns_)
 
         try:
-            freq_items = apriori(df_encoded, min_support=support, use_colnames=True)
-            rules = association_rules(freq_items, metric="confidence", min_threshold=confidence)
+            freq_items = apriori(df_encoded, min_support=Support, use_colnames=True)
+            rules = association_rules(freq_items, metric="confidence", min_threshold=Confidence)
         except MemoryError:
             st.error("Kesalahan : Naikkan nilai minimum support untuk mengurangi ukuran dataset.")
             st.stop()
