@@ -146,7 +146,7 @@ if uploaded_file:
 
             fig = go.Figure(data=[edge_trace, edge_hover_trace, node_trace],
                             layout=go.Layout(
-                                title="Module Association Network (Interactive)",
+                                title="Module Association Network",
                                 title_x=0.5,
                                 showlegend=False,
                                 hovermode='closest',
