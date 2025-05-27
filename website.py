@@ -14,10 +14,10 @@ if uploaded_file:
     df = pd.read_csv(uploaded_file)
 
     if 'nama_modul' not in df.columns:
-        st.error('Kolom "nama_modul" tidak ditemukan pada file yang diunggah.')
+        st.error("Kolom 'nama_modul' tidak ditemukan pada file yang diunggah.")
     else:
-        support = st.selectbox("Pilih nilai minimum support", [0.1, 0.05, 0.02, 0.01, 0.005])
-        confidence = st.selectbox("Pilih nilai minimum confidence", [0.9, 0.7, 0.5, 0.3, 0.1])
+        support = st.selectbox("Pilih minimum support", [0.1, 0.05, 0.02, 0.01, 0.005])
+        confidence = st.selectbox("Pilih minimum confidence", [0.9, 0.7, 0.5, 0.3, 0.1])
 
         df["nama_modul"] = df["nama_modul"].astype(str)
         transactions = df["nama_modul"].apply(lambda x: [mod.strip() for mod in x.split(',')]).tolist()
@@ -30,41 +30,34 @@ if uploaded_file:
             freq_items = apriori(df_encoded, min_support=support, use_colnames=True)
             rules = association_rules(freq_items, metric="confidence", min_threshold=confidence)
         except MemoryError:
-            st.error("Kesalahan: Naikkan nilai minimum support untuk mengurangi ukuran dataset.")
+            st.error("Kesalahan memori: Naikkan nilai minimum support atau kurangi ukuran dataset.")
             st.stop()
 
-        # Filter aturan dengan 1 item di antecedent dan consequent
+        # Filter hanya aturan dengan 1 modul di setiap sisi
         rules = rules[
             (rules['antecedents'].apply(lambda x: len(x) == 1)) &
             (rules['consequents'].apply(lambda x: len(x) == 1))
         ]
 
         if rules.empty:
-            st.warning("Tidak ditemukan aturan asosiasi untuk parameter yang dipilih.")
+            st.warning("Tidak ditemukan aturan asosiasi dengan parameter yang dipilih.")
         else:
-            # Ubah frozenset menjadi string
-            rules['antecedents'] = rules['antecedents'].apply(lambda x: next(iter(x)))
-            rules['consequents'] = rules['consequents'].apply(lambda x: next(iter(x)))
+            # Ubah frozenset ke string
+            rules['Modul A'] = rules['antecedents'].apply(lambda x: next(iter(x)))
+            rules['Modul B'] = rules['consequents'].apply(lambda x: next(iter(x)))
 
             st.subheader("Aturan Asosiasi")
-            rules_display = rules.rename(columns={
-                "antecedents": "Modul A",
-                "consequents": "Modul B",
-                "support": "Support",
-                "confidence": "Confidence"
-            })
-            st.dataframe(rules_display[["Modul A", "Modul B", "Support", "Confidence"]])
+            st.dataframe(rules[["Modul A", "Modul B", "support", "confidence"]])
 
-            # Bangun grafik berarah
+            # Bangun grafik
             G = nx.DiGraph()
 
             for _, row in rules.iterrows():
-                G.add_edge(row['antecedents'], row['consequents'],
+                G.add_edge(row['Modul A'], row['Modul B'],
                            confidence=row['confidence'])
 
             pos = nx.spring_layout(G, k=0.5, iterations=50, seed=42)
 
-            # Koordinat node
             node_x = []
             node_y = []
             for node in G.nodes():
@@ -72,7 +65,6 @@ if uploaded_file:
                 node_x.append(x)
                 node_y.append(y)
 
-            # Koordinat garis antar node
             edge_x = []
             edge_y = []
             edge_hover_x = []
@@ -85,16 +77,14 @@ if uploaded_file:
                 edge_x += [x0, x1, None]
                 edge_y += [y0, y1, None]
 
-                # Titik tengah untuk hover
                 mx, my = (x0 + x1) / 2, (y0 + y1) / 2
-
                 conf = edge[2]['confidence']
+
                 edge_hover_x.append(mx)
                 edge_hover_y.append(my)
-
                 hovertext = (
                     f"{edge[0]} → {edge[1]}<br>"
-                    f"Kepercayaan: {conf:.2f}"
+                    f"Confidence: {conf:.2f}"
                 )
                 edge_hover_text.append(hovertext)
 
@@ -116,6 +106,8 @@ if uploaded_file:
                 showlegend=False
             )
 
+            # Pewarnaan berdasarkan jumlah koneksi
+            node_colors = [G.degree(node) for node in G.nodes()]
             node_trace = go.Scatter(
                 x=node_x,
                 y=node_y,
@@ -126,34 +118,28 @@ if uploaded_file:
                 marker=dict(
                     showscale=True,
                     colorscale='YlGnBu',
-                    color=[rules.loc[rules['antecedents'] == node, 'confidence'].mean() if node in rules['antecedents'].values else 0 for node in G.nodes()],
+                    color=node_colors,
                     size=20,
                     colorbar=dict(
-                        title=dict(text='Rata-rata Kepercayaan', side='right')
+                        title=dict(text='Jumlah Koneksi', side='right')
                     ),
                     line_width=2)
             )
 
             node_hover_text = []
             for node in G.nodes():
-                avg_conf = rules.loc[rules['antecedents'] == node, 'confidence'].mean()
-                if pd.isna(avg_conf):
-                    avg_conf = 0
-                node_hover_text.append(f"Modul: {node}<br>Rata-rata Kepercayaan: {avg_conf:.2f}")
+                degree = G.degree(node)
+                node_hover_text.append(f"Modul: {node}<br>Jumlah Koneksi: {degree}")
 
             node_trace.hovertext = node_hover_text
 
             fig = go.Figure(data=[edge_trace, edge_hover_trace, node_trace],
                             layout=go.Layout(
-                                title=dict(
-                                    text="Graf Jaringan Asosiasi Modul",
-                                    x=0.5,
-                                    xanchor='center',
-                                    font=dict(size=24)
-                                ),
+                                title="Jaringan Asosiasi Modul",
+                                title_x=0.5,
                                 showlegend=False,
                                 hovermode='closest',
-                                margin=dict(b=20, l=20, r=20, t=60),
+                                margin=dict(b=20, l=5, r=5, t=40),
                                 annotations=[dict(
                                     text="",
                                     showarrow=False,
