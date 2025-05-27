@@ -6,18 +6,18 @@ import networkx as nx
 import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
-st.title("Module Association Visualization")
+st.title("Visualisasi Asosiasi Modul dengan Algoritma Apriori")
 
-uploaded_file = st.file_uploader("Upload a CSV file", type=["csv"])
+uploaded_file = st.file_uploader("Unggah file CSV", type=["csv"])
 
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
 
     if 'nama_modul' not in df.columns:
-        st.error("The column 'nama_modul' is not found in the uploaded file.")
+        st.error('Kolom "nama_modul" tidak ditemukan pada file yang diunggah.')
     else:
-        support = st.selectbox("Select minimum support", [0.1, 0.05, 0.02, 0.01, 0.005])
-        confidence = st.selectbox("Select minimum confidence", [0.9, 0.7, 0.5, 0.3, 0.1])
+        Support = st.selectbox("Pilih minimum support", [0.1, 0.05, 0.02, 0.01, 0.005])
+        Confidence = st.selectbox("Pilih minimum confidence", [0.9, 0.7, 0.5, 0.3, 0.1])
 
         df["nama_modul"] = df["nama_modul"].astype(str)
         transactions = df["nama_modul"].apply(lambda x: [mod.strip() for mod in x.split(',')]).tolist()
@@ -30,32 +30,31 @@ if uploaded_file:
             freq_items = apriori(df_encoded, min_support=support, use_colnames=True)
             rules = association_rules(freq_items, metric="confidence", min_threshold=confidence)
         except MemoryError:
-            st.error("Memory error: Try increasing minimum support or reducing dataset size.")
+            st.error("Kesalahan : Naikkan nilai minimum support untuk mengurangi ukuran dataset.")
             st.stop()
 
-        # Filter rules with 1-item antecedents and consequents
+        # Filter rules with 1-item Modul A and Modul B
         rules = rules[
-            (rules['antecedents'].apply(lambda x: len(x) == 1)) &
-            (rules['consequents'].apply(lambda x: len(x) == 1))
+            (rules['Modul A'].apply(lambda x: len(x) == 1)) &
+            (rules['Modul B'].apply(lambda x: len(x) == 1))
         ]
 
         if rules.empty:
-            st.warning("No association rules found with the selected parameters.")
+            st.warning("Tidak ada aturan asosiasi yang ditemukan dengan parameter yang dipilih.")
         else:
             # Convert frozensets to strings
-            rules['antecedents'] = rules['antecedents'].apply(lambda x: next(iter(x)))
-            rules['consequents'] = rules['consequents'].apply(lambda x: next(iter(x)))
+            rules['Modul A'] = rules['Modul A'].apply(lambda x: next(iter(x)))
+            rules['Modul B'] = rules['Modul B'].apply(lambda x: next(iter(x)))
 
-            st.subheader("Association Rules")
-            st.dataframe(rules[["antecedents", "consequents", "support", "confidence", "lift"]])
+            st.subheader("Aturan Asosiasi")
+            st.dataframe(rules[["Modul A", "Modul B", "Support", "Confidence"]])
 
             # Build directed graph
             G = nx.DiGraph()
 
             for _, row in rules.iterrows():
-                G.add_edge(row['antecedents'], row['consequents'],
-                           confidence=row['confidence'],
-                           lift=row['lift'])
+                G.add_edge(row['Modul A'], row['Modul B'],
+                           confidence=row['confidence'])
 
             pos = nx.spring_layout(G, k=0.5, iterations=50, seed=42)
 
@@ -86,15 +85,13 @@ if uploaded_file:
                 mx, my = (x0 + x1) / 2, (y0 + y1) / 2
 
                 conf = edge[2]['confidence']
-                lift = edge[2]['lift']
                 edge_hover_x.append(mx)
                 edge_hover_y.append(my)
 
                 # Hover text showing from → to dan nilai
                 hovertext = (
                     f"{edge[0]} → {edge[1]}<br>"
-                    f"Confidence: {conf:.2f}<br>"
-                    f"Lift: {lift:.2f}"
+                    f"Confidence: {conf:.2f}"
                 )
                 edge_hover_text.append(hovertext)
 
@@ -127,7 +124,7 @@ if uploaded_file:
                 marker=dict(
                     showscale=True,
                     colorscale='YlGnBu',
-                    color=[rules.loc[rules['antecedents'] == node, 'confidence'].mean() if node in rules['antecedents'].values else 0 for node in G.nodes()],
+                    color=[rules.loc[rules['Modul A'] == node, 'confidence'].mean() if node in rules['Modul A'].values else 0 for node in G.nodes()],
                     size=20,
                     colorbar=dict(
                         title=dict(text='Avg Confidence', side='right')
@@ -137,20 +134,24 @@ if uploaded_file:
 
             node_hover_text = []
             for node in G.nodes():
-                avg_conf = rules.loc[rules['antecedents'] == node, 'confidence'].mean()
+                avg_conf = rules.loc[rules['Modul A'] == node, 'confidence'].mean()
                 if pd.isna(avg_conf):
                     avg_conf = 0
-                node_hover_text.append(f"Module: {node}<br>Avg Confidence: {avg_conf:.2f}")
+                node_hover_text.append(f"Modul: {node}<br>Rerata Confidence: {avg_conf:.2f}")
 
             node_trace.hovertext = node_hover_text
 
             fig = go.Figure(data=[edge_trace, edge_hover_trace, node_trace],
                             layout=go.Layout(
-                                title="Module Association Network",
-                                title_x=0.4,
+                                title=dict(
+                                    text="Diagram Network Asosiasi Modul",
+                                    x=0.5,
+                                    xanchor='center',
+                                    font=dict(size=24)
+                                ),
                                 showlegend=False,
                                 hovermode='closest',
-                                margin=dict(b=20,l=5,r=5,t=40),
+                                margin=dict(b=20, l=20, r=20, t=60),
                                 annotations=[dict(
                                     text="",
                                     showarrow=False,
