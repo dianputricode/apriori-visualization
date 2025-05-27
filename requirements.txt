@@ -1,0 +1,5 @@
+mlxtend
+pandas
+streamlit
+networkx
+matplotlib
