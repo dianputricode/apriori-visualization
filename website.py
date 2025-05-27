@@ -6,7 +6,7 @@ import networkx as nx
 import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
-st.title("Python Module Association Visualization")
+st.title("Module Association Visualization")
 
 uploaded_file = st.file_uploader("Upload a CSV file", type=["csv"])
 
