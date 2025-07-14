@@ -56,26 +56,23 @@ if uploaded_file:
                 'consequents': 'Modul B',
                 'support': 'Support',
                 'confidence': 'Confidence',
-                'lift': 'Lift'
             }, inplace=True)
 
             rules_display = rules.copy()
             rules_display["Support"] = rules_display["Support"].apply(lambda x: float(f"{x:.3f}"))
             rules_display["Confidence"] = rules_display["Confidence"].apply(lambda x: float(f"{x:.3f}"))
-            rules_display["Lift"] = rules_display["Lift"].apply(lambda x: float(f"{x:.3f}"))
 
             # Urutkan berdasarkan Support, lalu Confidence
             rules_display_sorted = rules_display.sort_values(by=["Support", "Confidence"], ascending=[False, False])
 
             st.subheader("Association Rules")
-            st.dataframe(rules_display_sorted[["Modul A", "Modul B", "Support", "Confidence", "Lift"]])
+            st.dataframe(rules_display_sorted[["Modul A", "Modul B", "Support", "Confidence"]])
 
             # Bangun grafik asosiasi
             G = nx.DiGraph()
             for _, row in rules.iterrows():
                 G.add_edge(row['Modul A'], row['Modul B'],
-                           confidence=row['Confidence'],
-                           lift=row['Lift'])
+                           confidence=row['Confidence'])
 
             if G.number_of_edges() == 0:
                 st.info("Tidak ada hasil untuk ditampilkan dalam visualisasi.")
@@ -102,23 +99,20 @@ if uploaded_file:
                     edge_hover_y.append(my)
 
                     conf = edge[2]['confidence']
-                    lift = edge[2]['lift']
                     hovertext = (
                         f"{edge[0]} → {edge[1]}<br>"
-                        f"Confidence: {conf:.3f}<br>"
-                        f"Lift: {lift:.3f}"
+                        f"Confidence: {conf:.3f}"
                     )
 
+                    # Tambahkan info arah sebaliknya jika ada
                     reverse = rules[
                         (rules['Modul A'] == edge[1]) & (rules['Modul B'] == edge[0])
                     ]
                     if not reverse.empty:
                         rc = reverse.iloc[0]['Confidence']
-                        rl = reverse.iloc[0]['Lift']
                         hovertext += (
                             f"<br><br>{edge[1]} → {edge[0]}<br>"
-                            f"Confidence: {rc:.3f}<br>"
-                            f"Lift: {rl:.3f}"
+                            f"Confidence: {rc:.3f}"
                         )
 
                     edge_hover_text.append(hovertext)
