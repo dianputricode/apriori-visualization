@@ -55,24 +55,24 @@ if uploaded_file:
                 'antecedents': 'Modul A',
                 'consequents': 'Modul B',
                 'support': 'Support',
-                'confidence': 'Confidence',
-                'lift': 'Lift'
+                'confidence': 'Confidence'
             }, inplace=True)
+
+            # Urutkan berdasarkan support lalu confidence
+            rules.sort_values(by=['Support', 'Confidence'], ascending=[False, False], inplace=True)
 
             rules_display = rules.copy()
             rules_display["Support"] = rules_display["Support"].apply(lambda x: f"{x:.3f}")
             rules_display["Confidence"] = rules_display["Confidence"].apply(lambda x: f"{x:.3f}")
-            rules_display["Lift"] = rules_display["Lift"].apply(lambda x: f"{x:.3f}")
 
             st.subheader("Association Rules")
-            st.dataframe(rules_display[["Modul A", "Modul B", "Support", "Confidence", "Lift"]])
+            st.dataframe(rules_display[["Modul A", "Modul B", "Support", "Confidence"]])
 
             # Bangun grafik asosiasi
             G = nx.DiGraph()
             for _, row in rules.iterrows():
                 G.add_edge(row['Modul A'], row['Modul B'],
-                           confidence=row['Confidence'],
-                           lift=row['Lift'])
+                           confidence=row['Confidence'])
 
             if G.number_of_edges() == 0:
                 st.info("Tidak ada hasil untuk ditampilkan dalam visualisasi.")
@@ -99,11 +99,9 @@ if uploaded_file:
                     edge_hover_y.append(my)
 
                     conf = edge[2]['confidence']
-                    lift = edge[2]['lift']
                     hovertext = (
                         f"{edge[0]} → {edge[1]}<br>"
-                        f"Confidence: {conf:.3f}<br>"
-                        f"Lift: {lift:.3f}"
+                        f"Confidence: {conf:.3f}"
                     )
 
                     reverse = rules[
@@ -111,11 +109,9 @@ if uploaded_file:
                     ]
                     if not reverse.empty:
                         rc = reverse.iloc[0]['Confidence']
-                        rl = reverse.iloc[0]['Lift']
                         hovertext += (
                             f"<br><br>{edge[1]} → {edge[0]}<br>"
-                            f"Confidence: {rc:.3f}<br>"
-                            f"Lift: {rl:.3f}"
+                            f"Confidence: {rc:.3f}"
                         )
 
                     edge_hover_text.append(hovertext)
@@ -133,16 +129,16 @@ if uploaded_file:
                     showlegend=False
                 )
 
+                # TOTAL confidence dari hubungan keluar (bukan rata-rata)
                 node_color = [
-                    rules[rules['Modul A'] == node]['Confidence'].mean() if node in rules['Modul A'].values else 0
+                    rules[rules['Modul A'] == node]['Confidence'].sum() if node in rules['Modul A'].values else 0
                     for node in G.nodes()
                 ]
 
                 node_hover_text = []
                 for node in G.nodes():
-                    avg_conf = rules[rules['Modul A'] == node]['Confidence'].mean()
-                    if pd.isna(avg_conf): avg_conf = 0
-                    node_hover_text.append(f"Modul: {node}<br>Rerata Confidence: {avg_conf:.3f}")
+                    total_conf = rules[rules['Modul A'] == node]['Confidence'].sum()
+                    node_hover_text.append(f"Modul: {node}<br>Total Confidence: {total_conf:.3f}")
 
                 node_trace = go.Scatter(
                     x=node_x, y=node_y,
@@ -155,7 +151,7 @@ if uploaded_file:
                         colorscale='YlGnBu',
                         color=node_color,
                         size=20,
-                        colorbar=dict(title=dict(text='Rerata Confidence', side='right')),
+                        colorbar=dict(title=dict(text='Total Confidence', side='right')),
                         line_width=2
                     ),
                     hovertext=node_hover_text
