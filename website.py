@@ -136,9 +136,20 @@ if uploaded_file:
                     showlegend=False
                 )
 
-                # Pewarnaan berdasarkan jumlah hubungan (degree)
-                node_color = [G.degree(node) for node in G.nodes()]
-                node_hover_text = [f"Modul: {node}<br>Jumlah Hubungan: {G.degree(node)}" for node in G.nodes()]
+                # Pewarnaan berdasarkan total confidence (weighted degree)
+                node_weight = {
+                    node: sum(
+                        d['confidence']
+                        for u, v, d in G.edges(data=True)
+                        if u == node or v == node
+                    )
+                    for node in G.nodes()
+                }
+                node_color = [node_weight[node] for node in G.nodes()]
+                node_hover_text = [
+                    f"Modul: {node}<br>Total Confidence Hubungan: {node_weight[node]:.3f}"
+                    for node in G.nodes()
+                ]
 
                 node_trace = go.Scatter(
                     x=node_x, y=node_y,
@@ -151,7 +162,7 @@ if uploaded_file:
                         colorscale='YlGnBu',
                         color=node_color,
                         size=20,
-                        colorbar=dict(title=dict(text='Jumlah Hubungan', side='right')),
+                        colorbar=dict(title=dict(text='Total Confidence Hubungan', side='right')),
                         line_width=2
                     ),
                     hovertext=node_hover_text
