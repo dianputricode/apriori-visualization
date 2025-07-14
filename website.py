@@ -60,12 +60,15 @@ if uploaded_file:
             }, inplace=True)
 
             rules_display = rules.copy()
-            rules_display["Support"] = rules_display["Support"].apply(lambda x: f"{x:.3f}")
-            rules_display["Confidence"] = rules_display["Confidence"].apply(lambda x: f"{x:.3f}")
-            rules_display["Lift"] = rules_display["Lift"].apply(lambda x: f"{x:.3f}")
+            rules_display["Support"] = rules_display["Support"].apply(lambda x: float(f"{x:.3f}"))
+            rules_display["Confidence"] = rules_display["Confidence"].apply(lambda x: float(f"{x:.3f}"))
+            rules_display["Lift"] = rules_display["Lift"].apply(lambda x: float(f"{x:.3f}"))
+
+            # Urutkan berdasarkan Support, lalu Confidence
+            rules_display_sorted = rules_display.sort_values(by=["Support", "Confidence"], ascending=[False, False])
 
             st.subheader("Association Rules")
-            st.dataframe(rules_display[["Modul A", "Modul B", "Support", "Confidence", "Lift"]])
+            st.dataframe(rules_display_sorted[["Modul A", "Modul B", "Support", "Confidence", "Lift"]])
 
             # Bangun grafik asosiasi
             G = nx.DiGraph()
@@ -133,16 +136,9 @@ if uploaded_file:
                     showlegend=False
                 )
 
-                node_color = [
-                    rules[rules['Modul A'] == node]['Confidence'].mean() if node in rules['Modul A'].values else 0
-                    for node in G.nodes()
-                ]
-
-                node_hover_text = []
-                for node in G.nodes():
-                    avg_conf = rules[rules['Modul A'] == node]['Confidence'].mean()
-                    if pd.isna(avg_conf): avg_conf = 0
-                    node_hover_text.append(f"Modul: {node}<br>Rerata Confidence: {avg_conf:.3f}")
+                # Pewarnaan berdasarkan jumlah hubungan (degree)
+                node_color = [G.degree(node) for node in G.nodes()]
+                node_hover_text = [f"Modul: {node}<br>Jumlah Hubungan: {G.degree(node)}" for node in G.nodes()]
 
                 node_trace = go.Scatter(
                     x=node_x, y=node_y,
@@ -155,7 +151,7 @@ if uploaded_file:
                         colorscale='YlGnBu',
                         color=node_color,
                         size=20,
-                        colorbar=dict(title=dict(text='Rerata Confidence', side='right')),
+                        colorbar=dict(title=dict(text='Jumlah Hubungan', side='right')),
                         line_width=2
                     ),
                     hovertext=node_hover_text
