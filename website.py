@@ -6,18 +6,18 @@ import networkx as nx
 import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
-st.title("Visualisasi Aturan Asosiasi Modul")
+st.title("Module Association Rule Visualization")
 
-uploaded_file = st.file_uploader("Unggah file CSV", type=["csv"])
+uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
 
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
 
     if 'nama_modul' not in df.columns:
-        st.error("Kolom 'nama_modul' tidak ditemukan pada file yang diunggah.")
+        st.error("The 'nama_modul' column was not found in the uploaded file.")
     else:
-        support = st.selectbox("Pilih minimum support", [0.1, 0.05, 0.02, 0.01, 0.005])
-        confidence = st.selectbox("Pilih minimum confidence", [0.9, 0.7, 0.5, 0.3, 0.1])
+        support = st.selectbox("Select minimum support", [0.1, 0.05, 0.02, 0.01, 0.005])
+        confidence = st.selectbox("Select minimum confidence", [0.9, 0.7, 0.5, 0.3, 0.1])
 
         df["nama_modul"] = df["nama_modul"].astype(str)
         transactions = df["nama_modul"].apply(lambda x: [mod.strip() for mod in x.split(',')]).tolist()
@@ -29,36 +29,36 @@ if uploaded_file:
         try:
             freq_items = apriori(df_encoded, min_support=support, use_colnames=True)
         except MemoryError:
-            st.error("Memory error: Coba naikkan minimum support atau kecilkan ukuran data.")
+            st.error("Memory error: Try increasing the minimum support or reducing the data size.")
             st.stop()
 
         if freq_items.empty:
-            st.warning("Tidak ada itemset yang memenuhi minimum support. Coba turunkan nilai support.")
+            st.warning("No itemsets meet the minimum support. Try lowering the support value.")
             st.stop()
         
         rules = association_rules(freq_items, metric="confidence", min_threshold=confidence)
 
-        # Filter aturan dengan 1 item pada antecedent dan consequent
+        # Filter rules with one item in both antecedent and consequent
         rules = rules[
             (rules['antecedents'].apply(lambda x: len(x) == 1)) &
             (rules['consequents'].apply(lambda x: len(x) == 1))
         ]
 
         if rules.empty:
-            st.warning("Tidak ada aturan asosiasi yang ditemukan.")
+            st.warning("No association rules were found.")
         else:
-            # Konversi frozenset ke string
+            # Convert frozensets to string
             rules['antecedents'] = rules['antecedents'].apply(lambda x: next(iter(x)))
             rules['consequents'] = rules['consequents'].apply(lambda x: next(iter(x)))
 
             rules.rename(columns={
-                'antecedents': 'Modul A',
-                'consequents': 'Modul B',
+                'antecedents': 'Module A',
+                'consequents': 'Module B',
                 'support': 'Support',
                 'confidence': 'Confidence'
             }, inplace=True)
 
-            # Urutkan berdasarkan support lalu confidence
+            # Sort by support then confidence
             rules.sort_values(by=['Support', 'Confidence'], ascending=[False, False], inplace=True)
 
             rules_display = rules.copy()
@@ -66,16 +66,16 @@ if uploaded_file:
             rules_display["Confidence"] = rules_display["Confidence"].apply(lambda x: f"{x:.3f}")
 
             st.subheader("Association Rules")
-            st.dataframe(rules_display[["Modul A", "Modul B", "Support", "Confidence"]])
+            st.dataframe(rules_display[["Module A", "Module B", "Support", "Confidence"]])
 
-            # Bangun grafik asosiasi
+            # Build association graph
             G = nx.DiGraph()
             for _, row in rules.iterrows():
-                G.add_edge(row['Modul A'], row['Modul B'],
+                G.add_edge(row['Module A'], row['Module B'],
                            confidence=row['Confidence'])
 
             if G.number_of_edges() == 0:
-                st.info("Tidak ada hasil untuk ditampilkan dalam visualisasi.")
+                st.info("No results to display in the visualization.")
             else:
                 pos = nx.spring_layout(G, k=0.5, iterations=50, seed=42)
 
@@ -105,7 +105,7 @@ if uploaded_file:
                     )
 
                     reverse = rules[
-                        (rules['Modul A'] == edge[1]) & (rules['Modul B'] == edge[0])
+                        (rules['Module A'] == edge[1]) & (rules['Module B'] == edge[0])
                     ]
                     if not reverse.empty:
                         rc = reverse.iloc[0]['Confidence']
@@ -129,16 +129,16 @@ if uploaded_file:
                     showlegend=False
                 )
 
-                # TOTAL confidence dari hubungan keluar (bukan rata-rata)
+                # Total confidence of outgoing connections (not average)
                 node_color = [
-                    rules[rules['Modul A'] == node]['Confidence'].sum() if node in rules['Modul A'].values else 0
+                    rules[rules['Module A'] == node]['Confidence'].sum() if node in rules['Module A'].values else 0
                     for node in G.nodes()
                 ]
 
                 node_hover_text = []
                 for node in G.nodes():
-                    total_conf = rules[rules['Modul A'] == node]['Confidence'].sum()
-                    node_hover_text.append(f"Modul: {node}<br>Total Confidence: {total_conf:.3f}")
+                    total_conf = rules[rules['Module A'] == node]['Confidence'].sum()
+                    node_hover_text.append(f"Module: {node}<br>Total Confidence: {total_conf:.3f}")
 
                 node_trace = go.Scatter(
                     x=node_x, y=node_y,
@@ -160,7 +160,7 @@ if uploaded_file:
                 fig = go.Figure(
                     data=[edge_trace, edge_hover_trace, node_trace],
                     layout=go.Layout(
-                        title="Visualisasi Aturan Asosiasi Modul",
+                        title="Module Association Rule Visualization",
                         title_x=0.4,
                         showlegend=False,
                         hovermode='closest',
